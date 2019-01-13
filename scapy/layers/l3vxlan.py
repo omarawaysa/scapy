@@ -4,8 +4,13 @@
 # This program is published under a GPLv2 license
 
 """
-Virtual eXtensible Local Area Network (VXLAN)
-- RFC 7348 -
+This protocol is based on
+    Virtual eXtensible Local Area Network (VXLAN)
+    - RFC 7348 -
+
+    This is a custom protocol designed for Alibaba,
+    unlike a standard VXLAN, the next protocol is
+    always IPv4
 
 A Framework for Overlaying Virtualized Layer 2 Networks over Layer 3 Networks
 http://tools.ietf.org/html/rfc7348
@@ -16,17 +21,15 @@ http://tools.ietf.org/html/draft-smith-vxlan-group-policy-00
 """
 
 from scapy.packet import Packet, bind_layers
-from scapy.layers.l2 import Ether
 from scapy.layers.inet import IP, UDP
-from scapy.layers.inet6 import IPv6
 from scapy.fields import FlagsField, XByteField, ThreeBytesField, \
     ConditionalField, ShortField, ByteEnumField, X3BytesField
 
 _GP_FLAGS = ["R", "R", "R", "A", "R", "R", "D", "R"]
 
 
-class VXLAN(Packet):
-    name = "VXLAN"
+class L3VXLAN(Packet):
+    name = "L3VXLAN"
 
     fields_desc = [
         FlagsField("flags", 0x8, 8,
@@ -63,34 +66,17 @@ class VXLAN(Packet):
 
     # Use default linux implementation port
     overload_fields = {
-        UDP: {'dport': 8472},
+        UDP: {'dport': 250},
     }
 
     def mysummary(self):
         if self.flags.G:
-            return self.sprintf("VXLAN (vni=%VXLAN.vni% gpid=%VXLAN.gpid%)")
+            return self.sprintf("L3VXLAN (vni=%L3VXLAN.vni% gpid=%L3VXLAN.gpid%)")
         else:
-            return self.sprintf("VXLAN (vni=%VXLAN.vni%)")
+            return self.sprintf("L3VXLAN (vni=%L3VXLAN.vni%)")
 
 
-bind_layers(UDP, VXLAN, dport=4789)  # RFC standard vxlan port
-bind_layers(UDP, VXLAN, dport=4790)  # RFC standard vxlan-gpe port
-bind_layers(UDP, VXLAN, dport=6633)  # New IANA assigned port for use with NSH
-bind_layers(UDP, VXLAN, dport=8472)  # Linux implementation port
-bind_layers(UDP, VXLAN, dport=48879)  # Cisco ACI
-bind_layers(UDP, VXLAN, sport=4789)
-bind_layers(UDP, VXLAN, sport=4790)
-bind_layers(UDP, VXLAN, sport=6633)
-bind_layers(UDP, VXLAN, sport=8472)
-# By default, set both ports to the RFC standard
-bind_layers(UDP, VXLAN, sport=4789, dport=4789)
+bind_layers(UDP, L3VXLAN, dport=250)
+bind_layers(UDP, L3VXLAN, sport=4789, dport=250)
 
-bind_layers(VXLAN, Ether, NextProtocol=0)
-bind_layers(VXLAN, IP, NextProtocol=1)
-bind_layers(VXLAN, IPv6, NextProtocol=2)
-bind_layers(VXLAN, Ether, NextProtocol=3)
-bind_layers(VXLAN, Ether, flags=4, NextProtocol=0)
-bind_layers(VXLAN, IP, flags=4, NextProtocol=1)
-bind_layers(VXLAN, IPv6, flags=4, NextProtocol=2)
-bind_layers(VXLAN, Ether, flags=4, NextProtocol=3)
-bind_layers(VXLAN, Ether, flags=8)
+bind_layers(L3VXLAN, IP)
